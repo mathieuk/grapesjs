@@ -186,17 +186,19 @@ module.exports = Backbone.View.extend({
       cleanEditorElCls();
       e.preventDefault();
       e.stopPropagation();
-      this.uploadFile(e);
-
-      if (c.openAssetsOnDrop && editor) {
-        const target = editor.getSelected();
-        editor.runCommand('open-assets', {
-          target,
-          onSelect() {
-            editor.Modal.close();
-            editor.AssetManager.setTarget(null);
+      if (e.dataTransfer.files.length > 0)
+      {
+          this.uploadFile(e);
+          if (c.openAssetsOnDrop && editor) {
+            const target = editor.getSelected();
+            editor.runCommand('open-assets', {
+              target,
+              onSelect() {
+                editor.Modal.close();
+                editor.AssetManager.setTarget(null);
+              }
+            });
           }
-        });
       }
 
       return false;

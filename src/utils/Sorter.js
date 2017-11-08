@@ -811,7 +811,7 @@ module.exports = Backbone.View.extend({
    * */
   movePlaceholder(plh, dims, pos, trgDim) {
     var marg = 0, t = 0, l = 0, w = 0, h = 0,
-    un = 'px', margI = 5, brdCol = '#62c462', brd = 3,
+    un = 'px', margI = 5, brdCol = 'red', brd = 3,
     method = pos.method;
     var elDim = dims[pos.index];
     plh.style.borderColor = 'transparent ' + brdCol;
@@ -882,7 +882,7 @@ module.exports = Backbone.View.extend({
     }
 
     if (this.moved) {
-      created = this.move(this.target, src, this.lastPos);
+      created = this.move(this.target, src, this.lastPos, e);
     }
 
     if(this.plh)
@@ -908,7 +908,7 @@ module.exports = Backbone.View.extend({
    * @param {HTMLElement} src Element to move
    * @param {Object} pos Object with position coordinates
    * */
-  move(dst, src, pos) {
+  move(dst, src, pos,evt) {
     var em = this.em;
     em && em.trigger('component:dragEnd:before', dst, src, pos);
     var warns = [];
@@ -940,7 +940,29 @@ module.exports = Backbone.View.extend({
         opts.avoidUpdateStyle = 1;
       }
 
-      created = targetCollection.add(modelToDrop, opts);
+      if (validResult.srcModel.config.type == 'mergefield' && validResult.trgModel.config.type == 'text') {
+
+          let targetDoc = editor.Canvas.getBody().ownerDocument;
+          let range = null;
+
+          if (targetDoc.caretRangeFromPoint) { // Chrome
+              range = targetDoc.caretRangeFromPoint(evt.clientX, evt.clientY);
+          } else if (evt.rangeParent) { // Firefox
+              range = targetDoc.createRange();
+              range.setStart(evt.rangeParent, evt.rangeOffset);
+          }
+
+          var sel = editor.Canvas.getFrameEl().contentWindow.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          console.log(range);
+          validResult.trgModel.view.enableEditing();
+          validResult.trgModel.view.activeRte.insertHTML(validResult.srcModel.toHTML({}));
+          validResult.trgModel.view.disableEditing();
+          created = null;
+      } else {
+          created = targetCollection.add(modelToDrop, opts);
+      }
 
       if (!dropContent) {
         targetCollection.remove(modelTemp);

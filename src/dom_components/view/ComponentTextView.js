@@ -6,6 +6,65 @@ module.exports = ComponentView.extend({
 
   events: {
     'dblclick': 'enableEditing',
+    'keydown': function(e) {
+        if (this.rteEnabled) {
+            console.log(this);
+            this.rte.udpatePosition();
+            this.rte.udpatePosition();
+        }
+    },
+    'dragend': function(e) {
+        e.preventDefault();
+        //this.activeRte.el.contentEditable = false;
+    },
+
+    // 'dragover': function(e) {
+    //     e.preventDefault();
+    //     e.dataTransfer.dropEffect = 'move';
+    //     //this.enableEditing();
+    //     this.el.contentEditable = true;
+    //     this.el.focus();
+    //     // this.rteEnabled = 1;
+    //     // this.toggleEvents(1);
+    //     let targetDoc = editor.Canvas.getBody().ownerDocument;
+    //     this.updateCursorPosition(e);
+    //
+    //     return false;
+    // },
+    //
+    // 'drop': function(e) {
+    //     var canvasDoc = editor.Canvas.getBody().ownerDocument;
+    //     var id        = e.dataTransfer.getData('mergefield');
+    //     var element   = canvasDoc.getElementById(id);
+    //
+    //     if (!element) {
+    //         console.log("Tried to drag/drop mergefield but couldnt find the element:" + id);
+    //         return;
+    //     }
+    //     this.updateCursorPosition(e);
+    //     var newHTML = element.outerHTML;
+    //     element.parentNode.removeChild(element);
+    //     this.activeRte.insertHTML(newHTML);
+    //
+    //     this.disableEditing();
+    //     return false;
+    // }
+  },
+
+  updateCursorPosition(evt) {
+      let targetDoc = editor.Canvas.getBody().ownerDocument;
+      let range = null;
+
+      if (targetDoc.caretRangeFromPoint) { // Chrome
+          range = targetDoc.caretRangeFromPoint(evt.clientX, evt.clientY);
+      } else if (evt.rangeParent) { // Firefox
+          range = targetDoc.createRange();
+          range.setStart(evt.rangeParent, evt.rangeOffset);
+      }
+
+      var sel = editor.Canvas.getFrameEl().contentWindow.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
   },
 
   initialize(o) {
@@ -72,11 +131,10 @@ module.exports = ComponentView.extend({
         const clean = model => {
           model.set({
             editable: 0,
-            highlightable: 0,
-            removable: 0,
-            draggable: 0,
+            highlightable: 1,
+            removable: 1,
+            draggable: 1,
             copyable: 0,
-            toolbar: '',
           })
           model.get('components').each(model => clean(model));
         }
@@ -119,5 +177,4 @@ module.exports = ComponentView.extend({
     this.$el.off('mousedown', this.disablePropagation);
     this.$el[method]('mousedown', this.disablePropagation);
   },
-
 });
