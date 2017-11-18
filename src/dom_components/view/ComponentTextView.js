@@ -70,14 +70,24 @@ module.exports = ComponentView.extend({
         .set('content', content);
       } else {
         const clean = model => {
-          model.set({
+          let defaultProperties = {
             editable: 0,
             highlightable: 0,
             removable: 0,
             draggable: 0,
             copyable: 0,
             toolbar: '',
-          })
+          };
+
+          let textableProperties = {
+            editable: 0,
+            highlightable: 1,
+            badgable: 0,
+            draggable: 1,
+            copyable: 1,
+            textable: 1
+          }
+          model.set(model.get('textable') ? textableProperties : defaultProperties);
           model.get('components').each(model => clean(model));
         }
 

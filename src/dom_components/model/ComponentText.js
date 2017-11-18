@@ -4,7 +4,7 @@ module.exports = Component.extend({
 
   defaults: { ...Component.prototype.defaults,
     type: 'text',
-    droppable: false,
+    droppable: '[data-datatype=mergefield]',
     editable: true,
   },
 

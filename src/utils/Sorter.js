@@ -42,6 +42,8 @@ module.exports = Backbone.View.extend({
     this.dragHelper = null;
     this.canvasRelative = o.canvasRelative || 0;
     this.selectOnEnd = !o.avoidSelectOnEnd;
+    // currently 'active' textview model
+    this.activeTextModel = null;
 
     if(this.em && this.em.on){
       this.em.on('change:canvasOffset', this.udpateOffset);
@@ -330,6 +332,39 @@ module.exports = Backbone.View.extend({
     }
   },
 
+  updateTextViewCursorPosition(e)
+  {
+    let targetDoc = editor.Canvas.getBody().ownerDocument;
+    let range = null;
+
+    if (targetDoc.caretRangeFromPoint) { // Chrome
+        range = targetDoc.caretRangeFromPoint(e.clientX, e.clientY);
+    } else if (e.rangeParent) { // Firefox
+        range = targetDoc.createRange();
+        range.setStart(e.rangeParent, e.rangeOffset);
+    }
+
+    var sel = editor.Canvas.getFrameEl().contentWindow.getSelection();
+    editor.Canvas.getFrameEl().focus();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  },
+
+  disableEditingOn(textModel)
+  {
+    if (textModel != null) {
+      textModel.view.disableEditing();
+    }
+  },
+
+  setContentEditable(textModel, mode)
+  {
+    if (textModel != null) {
+      if (textModel.view.el.contentEditable != mode)
+        textModel.view.el.contentEditable = mode;
+    }
+  },
+
   /**
    * During move
    * @param {Event} e
@@ -361,31 +396,59 @@ module.exports = Backbone.View.extend({
     this.rY = rY;
     this.eventMove = e;
 
-    //var targetNew = this.getTargetFromEl(e.target);
-    const dims = this.dimsFromTarget(e.target, rX, rY);
-    const target = this.target;
+    const sourceModel = this.getSourceModel();
+    const dims        = this.dimsFromTarget(e.target, rX, rY);
+    const target      = this.target;
     const targetModel = this.getTargetModel(target);
     this.selectTargetModel(targetModel);
+    var showPlh = true;
 
-    this.lastDims = dims;
-    var pos = this.findPosition(dims, rX, rY);
-    // If there is a significant changes with the pointer
-    if( !this.lastPos ||
-        (this.lastPos.index != pos.index || this.lastPos.method != pos.method)){
-      this.movePlaceholder(this.plh, dims, pos, this.prevTargetDim);
-      if(!this.$plh)
-        this.$plh = $(this.plh);
-
-      // With canvasRelative the offset is calculated automatically for
-      // each element
-      if (!this.canvasRelative) {
-        if(this.offTop)
-          this.$plh.css('top', '+=' + this.offTop + 'px');
-        if(this.offLeft)
-          this.$plh.css('left', '+=' + this.offLeft + 'px');
+    if (sourceModel.get('textable')) {
+      if (targetModel.config.type == "text") {
+        if (this.activeTextModel != null && this.activeTextModel != targetModel) {
+          //this.setContentEditable(this.activeTextModel, false);
+          this.activeTextModel = targetModel;
+          this.setContentEditable(this.activeTextModel, true);
+        } else {
+          // Also enable editing when dragging from within the textview
+          //this.setContentEditable(this.activeTextModel, false);
+          this.activeTextModel = targetModel;
+          this.setContentEditable(this.activeTextModel, true);
+        }
       }
+      this.lastDims = dims;
+      this.plh.style.display = 'none';
 
+      var pos = this.findPosition(dims, rX, rY);
       this.lastPos = pos;
+      this.updateTextViewCursorPosition(e);
+
+    } else {
+      this.activeTextModel = null;
+
+      this.lastDims = dims;
+
+      var pos = this.findPosition(dims, rX, rY);
+      // If there is a significant changes with the pointer
+      if( !this.lastPos ||
+          (this.lastPos.index != pos.index || this.lastPos.method != pos.method))
+      {
+        this.movePlaceholder(this.plh, dims, pos, this.prevTargetDim);
+
+        if(!this.$plh)
+          this.$plh = $(this.plh);
+
+        // With canvasRelative the offset is calculated automatically for
+        // each element
+        if (!this.canvasRelative) {
+          if(this.offTop)
+            this.$plh.css('top', '+=' + this.offTop + 'px');
+          if(this.offLeft)
+            this.$plh.css('left', '+=' + this.offLeft + 'px');
+        }
+
+        this.lastPos = pos;
+      }
     }
 
     if(typeof this.onMoveClb === 'function')
@@ -943,6 +1006,8 @@ module.exports = Backbone.View.extend({
     var dragInfo = validResult.dragInfo;
     var dropContent = this.dropContent;
     droppable = validResult.trgModel instanceof Backbone.Collection ? 1 : droppable;
+    var modelIsTextable = model.get('textable');
+    var targetIsTextView = validResult.trgModel.config.type;
 
     if (targetCollection && droppable && draggable) {
       index = pos.method === 'after' ? index + 1 : index;
@@ -951,21 +1016,33 @@ module.exports = Backbone.View.extend({
       if (!dropContent) {
         modelTemp = targetCollection.add({}, opts);
 
-        if (model) {
+        if (model.collection) {
           modelToDrop = model.collection.remove(model);
         }
+
       } else {
         modelToDrop = dropContent;
         opts.silent = false;
         opts.avoidUpdateStyle = 1;
       }
 
-      created = targetCollection.add(modelToDrop, opts);
+      if (targetIsTextView && modelIsTextable)
+      {
+        this.activeTextModel.view.enableEditing();
+        this.activeTextModel.view.activeRte.insertHTML(model.toHTML({}));
+      }
+      else {
+        created = targetCollection.add(modelToDrop, opts);
+      }
 
       if (!dropContent) {
         targetCollection.remove(modelTemp);
       } else {
         this.dropContent = null;
+      }
+
+      if (targetIsTextView && modelIsTextable) {
+        this.disableEditingOn(this.activeTextModel);
       }
 
       // This will cause to recalculate children dimensions
