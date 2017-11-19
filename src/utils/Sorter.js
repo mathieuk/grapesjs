@@ -406,12 +406,12 @@ module.exports = Backbone.View.extend({
     if (sourceModel.get('textable')) {
       if (targetModel.config.type == "text") {
         if (this.activeTextModel != null && this.activeTextModel != targetModel) {
-          //this.setContentEditable(this.activeTextModel, false);
+          this.setContentEditable(this.activeTextModel, false);
           this.activeTextModel = targetModel;
           this.setContentEditable(this.activeTextModel, true);
         } else {
           // Also enable editing when dragging from within the textview
-          //this.setContentEditable(this.activeTextModel, false);
+
           this.activeTextModel = targetModel;
           this.setContentEditable(this.activeTextModel, true);
         }
